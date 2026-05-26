@@ -3,7 +3,9 @@
 
    Vanilla JS port of the original Preact board. It fetches /api/board, renders
    the columns, wires drag-and-drop + inline editing, and polls for changes so
-   multiple tabs stay roughly in sync. No framework or build step: the DOM is
+   multiple tabs stay roughly in sync. Polling pauses while the tab is hidden
+   and resumes (with an immediate catch-up fetch) when it regains focus. No
+   framework or build step: the DOM is
    rebuilt from the latest board snapshot on each render, with transient UI
    state (which card is being edited, which column is adding) tracked locally.
    ============================================================================= */
@@ -584,11 +586,24 @@
       if (state.board && state.board.isEditor) archiveStale();
     });
 
-    // Poll for changes from other tabs/users, but never clobber an open editor.
+    // True when a background refresh is safe: nothing mid-edit, and the tab is
+    // actually visible (a hidden/backgrounded tab need not poll the server).
+    function canRefresh() {
+      if (state.suspendPoll || state.editingId || state.addingStatus || state.drag) return false;
+      return !document.hidden;
+    }
+
+    // Poll for changes from other tabs/users, but never clobber an open editor
+    // and never hit the server while the tab is hidden.
     setInterval(function () {
-      if (state.suspendPoll || state.editingId || state.addingStatus || state.drag) return;
-      refresh();
+      if (canRefresh()) refresh();
     }, POLL_MS);
+
+    // Polling pauses while hidden, so catch up immediately on return to focus
+    // rather than waiting out the remaining interval on stale data.
+    document.addEventListener('visibilitychange', function () {
+      if (canRefresh()) refresh();
+    });
   }
 
   boot();

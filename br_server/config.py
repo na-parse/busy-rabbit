@@ -57,6 +57,10 @@ class ServerConfig:
     # Access mode: 'public' lets unauthenticated viewers read the board;
     # 'closed' forces them into the login flow before any board access.
     mode: str = MODE_PUBLIC
+    # Serve directly over HTTPS using a self-signed certificate (auto-generated
+    # alongside the database on first start). Off by default; for trusted public
+    # HTTPS, leave this off and run behind a reverse proxy instead.
+    use_https: bool = False
 
 
 @dataclass(frozen=True)
@@ -161,6 +165,16 @@ class Config:
     @property
     def log_dir(self) -> Path:
         return _resolve(self.logging.dir)
+
+    # TLS material lives beside the database; the location is fixed (not
+    # configurable) and only used when server.use_https is enabled.
+    @property
+    def cert_path(self) -> Path:
+        return self.db_path.parent / 'busy-rabbit-cert.pem'
+
+    @property
+    def key_path(self) -> Path:
+        return self.db_path.parent / 'busy-rabbit-key.pem'
 
     # -------------------------------------------------------------------------
     # Editor accessors

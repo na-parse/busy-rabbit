@@ -121,7 +121,15 @@ def _prompt_server(existing: ServerConfig) -> ServerConfig:
         'Access mode (public = open viewing, closed = login required)',
         MODES, existing.mode,
     )
-    return ServerConfig(host=host, port=port, debug=existing.debug, mode=mode)
+    use_https = _ask_bool(
+        'Serve over HTTPS with a self-signed certificate '
+        '(no for reverse-proxy setups)',
+        existing.use_https,
+    )
+    return ServerConfig(
+        host=host, port=port, debug=existing.debug, mode=mode,
+        use_https=use_https,
+    )
 
 
 def _prompt_security(existing: SecurityConfig) -> SecurityConfig:
@@ -254,6 +262,10 @@ def dump_toml(config: Config) -> str:
         f'debug = {str(s.debug).lower()}',
         '# Access mode: "public" (open viewing) or "closed" (login required).',
         f'mode = {_q(s.mode)}',
+        '# Serve directly over HTTPS with a self-signed certificate, generated',
+        '# beside the database on first start. Leave false to use a reverse',
+        '# proxy for trusted/public HTTPS.',
+        f'use_https = {str(s.use_https).lower()}',
         '',
         '[security]',
         '# Signs session cookies; sessions last 30 days. Keep this secret.',
@@ -314,6 +326,7 @@ def _show_server(server: ServerConfig, security: SecurityConfig) -> None:
     key = 'NOT set' if security.secret_key in _PLACEHOLDER_SECRETS else 'set'
     print(f'  Bind:        {server.host}:{server.port}')
     print(f'  Access mode: {server.mode}')
+    print(f'  HTTPS:       {"on (self-signed)" if server.use_https else "off"}')
     print(f'  Secret key:  {key}')
 
 
@@ -354,7 +367,8 @@ def _enter_section(name: str, editing: bool, show) -> bool:
 def _summary(config: Config) -> None:
     _heading('Review')
     s, m, b = config.server, config.smtp, config.board
-    print(f'Mode:        {s.mode}  (host {s.host}:{s.port})')
+    print(f'Mode:        {s.mode}  (host {s.host}:{s.port}, '
+          f'{"https" if s.use_https else "http"})')
     print(f'SMTP:        {m.relay or "(disabled)"}:{m.port} '
           f'(tls={m.tls}, auth={m.use_auth})')
     print(f'Board:       {b.title}')

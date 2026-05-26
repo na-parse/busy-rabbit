@@ -12,6 +12,12 @@ debug = false
 #   "public" - unauthenticated visitors can view the board (read-only).
 #   "closed" - visitors must sign in before any board access.
 mode = "closed"
+# Serve directly over HTTPS using a self-signed certificate. When true, a
+# cert/key pair is generated beside the database (busy-rabbit-cert.pem /
+# busy-rabbit-key.pem) on first start and reused thereafter. Browsers will warn
+# about the self-signed cert. For trusted/public HTTPS, leave this false and run
+# busy-rabbit behind a reverse proxy instead.
+use_https = false
 
 [security]
 # Used to sign session cookies. Set to a long random string for any real use.
