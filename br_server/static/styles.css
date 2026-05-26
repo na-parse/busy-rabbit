@@ -1,0 +1,282 @@
+/* =============================================================================
+   busy-rabbit styles
+
+   Hand-written CSS replacing the original Tailwind classes. Theme palettes are
+   CSS custom properties applied to the root <html data-theme="..."> element;
+   components reference them via var(--token), so switching themes is a single
+   attribute change with no rebuild. The two palettes mirror github-light and
+   github-dark from the original app.
+   ============================================================================= */
+
+:root,
+html[data-theme='github-dark'] {
+  --canvas: #0d1117;
+  --surface: #161b22;
+  --surface-muted: #21262d;
+  --border: #30363d;
+  --fg: #e6edf3;
+  --fg-muted: #8b949e;
+  --accent: #2f81f7;
+  --on-accent: #ffffff;
+  --danger: #f85149;
+  --shadow: rgba(1, 4, 9, 0.5);
+}
+
+html[data-theme='github-light'] {
+  --canvas: #ffffff;
+  --surface: #f6f8fa;
+  --surface-muted: #eaeef2;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --fg-muted: #656d76;
+  --accent: #0969da;
+  --on-accent: #ffffff;
+  --danger: #cf222e;
+  --shadow: rgba(31, 35, 40, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; }
+
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+    sans-serif;
+  font-size: 14px;
+}
+
+/* =============================================================================
+   App shell + top bar
+   ============================================================================= */
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 12px;
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+}
+
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.brand-row { display: flex; align-items: center; gap: 10px; }
+.brand-logo { display: block; width: 32px; height: 32px; flex-shrink: 0; }
+.brand h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+
+/* Per-deployment branding: app owner label + tagline statement. */
+.app-owner {
+  font-size: 16px; font-weight: 600; color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.app-owner::before {
+  content: '\00B7'; margin-right: 10px; color: var(--fg-muted); font-weight: 400;
+}
+.statement {
+  margin: 0; font-size: 12px; font-style: italic; color: var(--fg-muted);
+}
+
+.badge {
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 1px 8px; font-size: 12px; color: var(--fg-muted);
+}
+.badge[hidden] { display: none; }
+
+.actions { display: flex; align-items: center; gap: 12px; }
+.actions form { margin: 0; }
+.viewer { color: var(--fg-muted); max-width: 12rem; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+
+/* Buttons */
+button { font: inherit; cursor: pointer; }
+
+.btn-ghost {
+  border: 1px solid var(--border); background: transparent; color: var(--fg-muted);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px;
+}
+.btn-ghost:hover { color: var(--fg); }
+
+.btn-outline {
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px;
+  color: var(--fg); text-decoration: none; background: transparent;
+}
+.btn-outline:hover { border-color: var(--accent); }
+
+.btn-link { border: none; background: none; color: var(--fg-muted); font-size: 14px; }
+.btn-link:hover { color: var(--fg); }
+
+.btn-accent {
+  background: var(--accent); color: var(--on-accent); border: none;
+  border-radius: 6px; padding: 8px 12px; font-weight: 500;
+}
+
+.config-alert {
+  border-bottom: 1px solid var(--danger); background: var(--surface);
+  color: var(--danger); padding: 10px 20px; font-size: 14px;
+}
+.config-alert code {
+  background: var(--surface-muted); border-radius: 4px; padding: 0 4px;
+}
+
+/* =============================================================================
+   Columns + cards
+   ============================================================================= */
+
+.columns {
+  display: flex; flex: 1; gap: 16px; overflow-x: auto; padding: 20px;
+  align-items: flex-start;
+}
+
+.column {
+  display: flex; flex-direction: column; width: 288px; flex-shrink: 0;
+  max-height: calc(100vh - 120px);
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+}
+
+.column-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 10px 12px;
+}
+.column-title { display: flex; align-items: center; gap: 8px; }
+.column-title h2 { font-size: 14px; font-weight: 600; margin: 0; }
+
+.count {
+  border-radius: 999px; background: var(--surface-muted);
+  padding: 0 6px; font-size: 12px; color: var(--fg-muted);
+}
+
+.dot {
+  display: inline-block; width: 10px; height: 10px; flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.add-btn {
+  border: none; background: none; color: var(--fg-muted);
+  font-size: 18px; line-height: 1; border-radius: 4px; padding: 0 6px;
+}
+.add-btn:hover { background: var(--surface-muted); color: var(--fg); }
+
+.column-body {
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; padding: 0 8px 12px;
+}
+.column-body.drop-active { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+.card {
+  border: 1px solid var(--border); background: var(--canvas);
+  border-radius: 6px; padding: 12px; box-shadow: 0 1px 0 var(--shadow);
+}
+.card.editable { cursor: grab; }
+.card.editable:active { cursor: grabbing; }
+.card.dragging { opacity: 0.4; }
+.card.drop-before { border-top: 2px solid var(--accent); }
+
+.card h3 { font-size: 14px; font-weight: 600; line-height: 1.35; margin: 0; }
+
+/* Notes: separated from the primary text by a rule and shown in a softer tone. */
+.card-notes {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+.card-notes p {
+  margin: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap;
+  color: var(--fg-muted); opacity: 0.85; font-style: italic;
+}
+
+.card-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  margin-top: 10px; font-size: 11px; color: var(--fg-muted);
+}
+.card-meta .archive-soon { color: var(--accent); }
+
+.card-owner {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  font-size: 11px; color: var(--fg-muted);
+}
+
+.avatar {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-muted);
+  font-size: 12px; font-weight: 500; color: var(--fg-muted);
+}
+
+.empty {
+  padding: 24px 4px; text-align: center; font-size: 12px; color: var(--fg-muted);
+}
+
+/* Inline editors */
+.editor-box, .add-box {
+  border: 1px solid var(--accent); background: var(--canvas);
+  border-radius: 6px; padding: 8px;
+}
+.editor-box input, .editor-box textarea, .add-box textarea {
+  width: 100%; background: var(--canvas); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+  font: inherit; outline: none;
+}
+.editor-box input { font-weight: 600; }
+.editor-box textarea { margin-top: 8px; font-size: 12px; resize: vertical; }
+/* Notes field in the editor: muted + italic to echo how notes read on the card. */
+.editor-box textarea.notes-field { color: var(--fg-muted); font-style: italic; }
+.add-box textarea {
+  border: none; padding: 0; resize: none; background: transparent; font-size: 14px;
+}
+.editor-box input:focus, .editor-box textarea:focus { border-color: var(--accent); }
+
+.editor-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 8px;
+}
+.editor-actions .right { display: flex; gap: 8px; }
+.btn-danger { border: none; background: none; color: var(--danger); font-size: 12px; }
+.btn-danger:hover { text-decoration: underline; }
+.btn-cancel {
+  border: 1px solid var(--border); background: transparent; color: var(--fg-muted);
+  border-radius: 4px; padding: 4px 10px; font-size: 12px;
+}
+.btn-save {
+  border: none; background: var(--accent); color: var(--on-accent);
+  border-radius: 4px; padding: 4px 10px; font-size: 12px; font-weight: 500;
+}
+
+/* =============================================================================
+   Archived drawer
+   ============================================================================= */
+
+.archived { border-top: 1px solid var(--border); padding: 12px 20px; }
+.archived[hidden] { display: none; }
+.archived-toggle {
+  display: flex; align-items: center; gap: 8px;
+  border: none; background: none; color: var(--fg-muted); font-size: 14px;
+}
+.archived-toggle:hover { color: var(--fg); }
+.archived-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px; margin-top: 12px;
+}
+
+/* =============================================================================
+   Login page
+   ============================================================================= */
+
+.login-body {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+}
+.login-card {
+  width: 320px; border: 1px solid var(--border); background: var(--surface);
+  border-radius: 8px; padding: 24px; display: flex; flex-direction: column; gap: 12px;
+}
+.login-logo { display: block; width: 56px; height: 56px; }
+.login-card h1 { margin: 0; font-size: 20px; }
+.login-sub { margin: 0; color: var(--fg-muted); }
+.login-card form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+.login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+  color: var(--fg-muted); }
+.login-card select, .login-card input {
+  background: var(--canvas); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px; font: inherit;
+}
+.login-error { color: var(--danger); font-size: 13px; margin: 0; }
+.login-info { color: var(--accent); font-size: 13px; margin: 0; }
+.login-back { color: var(--fg-muted); font-size: 12px; text-decoration: none; }
+.login-back:hover { color: var(--fg); }

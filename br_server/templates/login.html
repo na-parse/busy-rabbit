@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in &middot; {{ board_title }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any" />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body class="login-body" data-theme="github-dark">
+  <main class="login-card">
+    <img class="login-logo" src="{{ url_for('static', filename='logo.png') }}"
+         alt="" width="56" height="56" />
+    <h1>{{ board_title }}</h1>
+    <p class="login-sub">Editor sign-in</p>
+
+    {% if required %}
+      <p class="login-error" role="alert">Login required for access.</p>
+    {% endif %}
+    {% if error %}
+      <p class="login-error" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if info %}
+      <p class="login-info" role="status">{{ info }}</p>
+    {% endif %}
+
+    {% if not config_valid %}
+      <p class="login-error" role="alert">
+        Editing is disabled: configure at least one
+        <code>[[board.editors]]</code> in <code>config.toml</code>.
+      </p>
+
+    {% elif step == 'email' %}
+      <form method="post" action="{{ url_for('board.login_submit') }}">
+        <label>
+          Email
+          <input type="email" name="email" value="{{ email }}"
+                 autocomplete="email" required autofocus />
+        </label>
+        <button type="submit" class="btn-accent">Send login code</button>
+      </form>
+      <a class="login-back" href="{{ url_for('board.token_page') }}">
+        Have a prevalidation token?
+      </a>
+
+    {% elif step == 'verify' %}
+      <form method="post" action="{{ url_for('board.verify_submit') }}">
+        <p class="login-sub">Code sent to <strong>{{ email }}</strong></p>
+        <label>
+          Login code
+          <input type="text" name="code" inputmode="numeric"
+                 autocomplete="one-time-code" required autofocus />
+        </label>
+        <button type="submit" class="btn-accent">Verify</button>
+      </form>
+      <form method="post" action="{{ url_for('board.resend_code') }}">
+        <button type="submit" class="btn-link">Resend code</button>
+      </form>
+      <a class="login-back" href="{{ url_for('board.login_page') }}">
+        &larr; Use a different email
+      </a>
+
+    {% elif step == 'token' %}
+      <form method="post" action="{{ url_for('board.token_submit') }}">
+        <p class="login-sub">
+          Sign in with a token from
+          <code>busy_rabbit auth token &lt;email&gt;</code>.
+        </p>
+        <label>
+          Email
+          <input type="email" name="email" value="{{ email }}"
+                 autocomplete="email" required autofocus />
+        </label>
+        <label>
+          Token
+          <input type="text" name="token" autocomplete="off" required />
+        </label>
+        <button type="submit" class="btn-accent">Sign in</button>
+      </form>
+      <a class="login-back" href="{{ url_for('board.login_page') }}">
+        &larr; Email code instead
+      </a>
+    {% endif %}
+
+    <a class="login-back" href="{{ url_for('board.index') }}">&larr; Back to board</a>
+  </main>
+</body>
+</html>

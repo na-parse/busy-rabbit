@@ -1,0 +1,65 @@
+# busy-rabbit configuration
+# -----------------------------------------------------------------------------
+# Copy this file to `config.toml` and edit. The real `config.toml` is gitignored
+# so secrets and host-specific settings stay local. All relative paths are
+# resolved against the repository root.
+
+[server]
+host = "127.0.0.1"   # bind address; use "0.0.0.0" to expose on the LAN
+port = 8000
+debug = false
+# Access mode:
+#   "public" - unauthenticated visitors can view the board (read-only).
+#   "closed" - visitors must sign in before any board access.
+mode = "closed"
+
+[security]
+# Used to sign session cookies. Set to a long random string for any real use.
+# Sessions stay valid for 30 days from sign-in.
+secret_key = "change-me-to-a-long-random-string"
+
+[smtp]
+# Used to deliver one-time login codes. Required for the email login flow;
+# the CLI prevalidation-token flow (`busy_rabbit auth token <email>`) bypasses
+# it.
+relay = "smtp.internal.example"
+port = 587
+# Transport security: "starttls" (upgrade on connect, usually port 587),
+# "implicit" (SMTPS / TLS from the start, usually port 465), or "none".
+tls = "starttls"
+# Auth is used only when BOTH username and password are set. Setting just one
+# is a configuration error; setting neither sends mail without authentication.
+username = ""
+password = ""
+# Envelope From address. Defaults to username (if it is an address) or
+# busy-rabbit@<relay> when left blank.
+from_addr = "busy-rabbit@example.com"
+
+[board]
+title = "busy-rabbit"
+# Per-deployment branding shown in the title bar (both optional).
+# app_owner: who runs this instance; statement: a short tagline.
+app_owner = "Storage Infrastructure"
+statement = "keeping all the bits in the right buckets"
+archive_after_days = 14
+
+# Authorised editors. Each entry needs a valid `email`; `nickname` is optional
+# and, when present, is used as the card "owner" label (otherwise the email's
+# local part is used). With a single editor the board is a solo space and owner
+# names are hidden; with two or more, owners are shown on each card. An empty
+# list disables editing (invalid configuration).
+[[board.editors]]
+email = "nathan@unit03.net"
+nickname = "nathan"
+
+# [[board.editors]]
+# email = "sam@example.com"
+
+[database]
+path = "data/busy_rabbit.db"
+
+[logging]
+level = "INFO"        # DEBUG, INFO, WARNING, ERROR
+dir = "logs"
+max_bytes = 1000000   # rotate the log file at ~1 MB
+backup_count = 5

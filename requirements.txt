@@ -1,0 +1,4 @@
+# busy-rabbit runtime dependencies.
+# sqlite3 and tomllib are part of the Python standard library (3.11+), so the
+# only external dependency is Flask.
+Flask>=3.0,<4.0

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ board_title }}{% if app_owner %} &middot; {{ app_owner }}{% endif %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any" />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <!--
+    The board shell is static; br.js fetches /api/board and renders the
+    columns, then polls for updates. Server-provided flags below seed the
+    first paint so the header is correct before the first fetch returns.
+  -->
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-row">
+          <img class="brand-logo" src="{{ url_for('static', filename='logo.png') }}"
+               alt="" width="32" height="32" />
+          <h1>{{ board_title }}</h1>
+          {% if app_owner %}
+            <span class="app-owner">{{ app_owner }}</span>
+          {% endif %}
+          {% if statement %}
+            <span class="statement">{{ statement }}</span>
+          {% endif %}
+          <span id="readonly-badge" class="badge"
+                {% if is_editor %}hidden{% endif %}>read only</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="theme-toggle" type="button" class="btn-ghost"
+                title="Switch theme">&#9728; light</button>
+        <span class="viewer">{{ viewer_name }}</span>
+        {% if is_editor %}
+          <form method="post" action="{{ url_for('board.logout') }}">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        {% else %}
+          <a class="btn-outline" href="{{ url_for('board.login_page') }}">Sign in</a>
+        {% endif %}
+      </div>
+    </header>
+
+    {% if not config_valid %}
+    <div role="alert" class="config-alert">
+      Invalid configuration: no editors are set. Add at least one
+      <code>[[board.editors]]</code> in <code>config.toml</code> to enable
+      editing. The board is read-only until then.
+    </div>
+    {% endif %}
+
+    <main id="columns" class="columns" aria-busy="true"></main>
+
+    <section id="archived" class="archived" hidden></section>
+  </div>
+
+  <script src="{{ url_for('static', filename='br.js') }}"></script>
+</body>
+</html>
