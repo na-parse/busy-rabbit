@@ -20,6 +20,9 @@ html[data-theme='github-dark'] {
   --on-accent: #ffffff;
   --danger: #f85149;
   --shadow: rgba(1, 4, 9, 0.5);
+  /* Owner-avatar palette: 8 slots, all dark enough for white text on dark bg. */
+  --av-0: #388bfd; --av-1: #2ea043; --av-2: #8957e5; --av-3: #da3633;
+  --av-4: #db6d28; --av-5: #0e8a87; --av-6: #db61a2; --av-7: #9e6a03;
 }
 
 html[data-theme='github-light'] {
@@ -33,6 +36,9 @@ html[data-theme='github-light'] {
   --on-accent: #ffffff;
   --danger: #cf222e;
   --shadow: rgba(31, 35, 40, 0.12);
+  /* Owner-avatar palette: darker hues so white text stays legible on light bg. */
+  --av-0: #0969da; --av-1: #1a7f37; --av-2: #8250df; --av-3: #cf222e;
+  --av-4: #bc4c00; --av-5: #0e7490; --av-6: #bf3989; --av-7: #9a6700;
 }
 
 * { box-sizing: border-box; }
@@ -182,23 +188,50 @@ button { font: inherit; cursor: pointer; }
   color: var(--fg-muted); opacity: 0.85; font-style: italic;
 }
 
-.card-meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+/* Footer row: owner (avatar + nickname) or a clock glyph fallback, plus the
+   archive warning. It is the hover/focus trigger for the timing popover, so it
+   shows a help cursor and a faint focus ring. */
+.card-footer {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   margin-top: 10px; font-size: 11px; color: var(--fg-muted);
+  cursor: help; outline: none; border-radius: 4px;
 }
-.card-meta .archive-soon { color: var(--accent); }
+.card-footer:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.card-owner-name { color: var(--fg-muted); }
+.card-time-icon { font-size: 13px; line-height: 1; color: var(--fg-muted); }
+.archive-soon { margin-left: auto; color: var(--accent); }
 
-.card-owner {
-  display: flex; align-items: center; gap: 6px; margin-top: 8px;
-  font-size: 11px; color: var(--fg-muted);
+/* Floating timing panel (one shared node on <body>, position:fixed set by JS).
+   pointer-events:none so it never intercepts the hover that opened it. */
+.card-popover {
+  position: fixed; z-index: 50; pointer-events: none;
+  min-width: 150px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); box-shadow: 0 4px 14px var(--shadow);
+  font-size: 11px; color: var(--fg);
 }
+.card-popover[hidden] { display: none; }
+.card-popover-row { display: flex; justify-content: space-between; gap: 16px; }
+.card-popover-row + .card-popover-row { margin-top: 4px; }
+.card-popover-label { color: var(--fg-muted); }
+.card-popover-value { color: var(--fg); }
 
+/* Owner avatar leads the footer; a deterministic per-nickname color (slot class
+   set by br.js) keeps same-initial avatars distinct. */
 .avatar {
   display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; flex-shrink: 0; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--surface-muted);
-  font-size: 12px; font-weight: 500; color: var(--fg-muted);
+  width: 20px; height: 20px; flex-shrink: 0; border-radius: 999px;
+  border: 1px solid transparent; font-size: 11px; font-weight: 600;
+  color: #fff;
 }
+.avatar-0 { background: var(--av-0); }
+.avatar-1 { background: var(--av-1); }
+.avatar-2 { background: var(--av-2); }
+.avatar-3 { background: var(--av-3); }
+.avatar-4 { background: var(--av-4); }
+.avatar-5 { background: var(--av-5); }
+.avatar-6 { background: var(--av-6); }
+.avatar-7 { background: var(--av-7); }
 
 .empty {
   padding: 24px 4px; text-align: center; font-size: 12px; color: var(--fg-muted);
