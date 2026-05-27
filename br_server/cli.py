@@ -21,6 +21,7 @@ from .board import STATUS_LABELS, effective_status
 from .certs import create_self_signed_cert, is_ssl_configured
 from .config import ConfigError, config_has_secret, validate_config
 from .db import SCHEMA_VERSION, CardStore
+from .demo import DEMO_CARDS, seed_demo
 from .logging_setup import configure_logging
 
 
@@ -119,6 +120,44 @@ def cmd_db_init(args: argparse.Namespace) -> int:
     store = _store(config)
     store.init_db()
     print(f'Database at {config.db_path} ready (schema v{SCHEMA_VERSION}).')
+    return 0
+
+
+def cmd_db_demo(args: argparse.Namespace) -> int:
+    '''Overwrite the database with a fresh set of demonstration cards.
+
+    Destructive: an existing database is deleted (with its WAL sidecars) and
+    rebuilt. Prompts for confirmation when a database is already present unless
+    ``--force`` is given.
+    '''
+    config = _load(args)
+    store = _store(config)
+    db_path = config.db_path
+    editors = config.board.editors
+    if not editors:
+        print('Error: no editors configured; run `config setup` first.',
+              file=sys.stderr)
+        return 1
+
+    if db_path.exists() and not args.force:
+        print(f'WARNING: {db_path} already exists.')
+        print('The demo will DELETE it and replace its contents with sample '
+              'cards. This cannot be undone.')
+        reply = input('Overwrite the existing database? [y/N] ').strip().lower()
+        if reply not in ('y', 'yes'):
+            print('Aborted; database left unchanged.')
+            return 1
+
+    # Clear the db and its WAL sidecars so seeding starts from a clean slate.
+    for suffix in ('', '-wal', '-shm'):
+        db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
+
+    store.init_db()
+    count = seed_demo(store, editors)
+    print(f'Seeded {count} demo card(s) into {db_path} (schema v{SCHEMA_VERSION}).')
+    if len(editors) < 2:
+        print('Note: only one editor is configured, so owner avatars stay '
+              'hidden; add a second editor to show them.')
     return 0
 
 
@@ -273,6 +312,16 @@ def build_parser() -> argparse.ArgumentParser:
     db_sub = p_db.add_subparsers(dest='db_command', required=True)
 
     db_sub.add_parser('init', help='Create schema.').set_defaults(func=cmd_db_init)
+
+    p_demo = db_sub.add_parser(
+        'demo',
+        help=f'Overwrite the DB with {len(DEMO_CARDS)} demo cards.',
+    )
+    p_demo.add_argument(
+        '-f', '--force', action='store_true',
+        help='Skip the overwrite confirmation prompt.',
+    )
+    p_demo.set_defaults(func=cmd_db_demo)
 
     p_dump = db_sub.add_parser('dump', help='Dump cards as JSON.')
     p_dump.add_argument('-o', '--output', help='Write to file instead of stdout.')

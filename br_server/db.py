@@ -195,10 +195,19 @@ class CardStore:
         owner_id: str,
         owner_name: str,
         notes: str = '',
+        created_at: str | None = None,
+        status_changed_at: str | None = None,
     ) -> dict[str, Any]:
-        '''Insert a new card and return it.'''
+        '''Insert a new card and return it.
+
+        ``created_at`` and ``status_changed_at`` default to the current time;
+        pass explicit ISO-8601 values to backdate a card (used by demo seeding
+        to exercise the archive countdown and timing popover).
+        '''
         card_id = uuid.uuid4().hex
         timestamp = now_iso()
+        created = created_at or timestamp
+        changed = status_changed_at or timestamp
         with self.connect() as conn:
             conn.execute(
                 'INSERT INTO cards (id, title, notes, status, position, '
@@ -212,8 +221,8 @@ class CardStore:
                     position,
                     owner_id,
                     owner_name,
-                    timestamp,
-                    timestamp,
+                    changed,
+                    created,
                     timestamp,
                 ),
             )

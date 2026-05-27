@@ -5,6 +5,8 @@ Python + Flask + SQLite implementation with **no Node, no build step, and
 no external services** so it can be moved around and hosted locally 
 for compliance.
 
+![busy-rabbit board](assets/screenshot.jpg)
+
 ## Quickstart
 
 Requires Python 3.11+ (uses the stdlib `tomllib`). From the repo root:
@@ -81,6 +83,7 @@ for any command's own help.
 | --- | --- | --- |
 | `serve` | `--host H`, `--port P`, `--debug` / `--no-debug` | Start the web server. Options override `[server]` from config. |
 | `db init` | — | Create the database schema if needed. |
+| `db demo` | `-f`, `--force` | **Destructive.** Replace the database with ~20 sample cards spanning every column (and the archived shelf) for demos/evaluation. Prompts before overwriting an existing database unless `--force`. |
 | `db list` | — | List cards in a compact table. |
 | `db dump` | `-o`, `--output FILE` | Dump all cards as JSON (to a file, else stdout). |
 | `db stats` | — | Show card counts grouped by effective status. |
