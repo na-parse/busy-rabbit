@@ -17,21 +17,30 @@ from typing import Any
 from .board import clean_notes, clean_title, now_iso
 
 # =============================================================================
-# Schema
+# Schema + migrations
 # -----------------------------------------------------------------------------
-# SCHEMA_VERSION is stamped into the SQLite ``user_version`` pragma. There is no
-# migration path: a database written by an incompatible build is rejected so
-# the operator removes it and re-initialises (pre-deployment policy).
+# SCHEMA_VERSION is stamped into the SQLite ``user_version`` pragma. The schema
+# is defined as a *ladder* of migrations: ``_MIGRATIONS[n]`` upgrades a database
+# from version ``n-1`` to ``n``. A fresh database is simply version 0 walked up
+# to the latest, so creating and upgrading share one path. To evolve the schema:
+#   1. write a ``_migrate_to_vN(conn)`` that applies only the version N changes,
+#   2. register it in ``_MIGRATIONS`` under key N,
+#   3. bump ``SCHEMA_VERSION`` to N.
+# A database newer than this build (version > SCHEMA_VERSION) is refused, since
+# the code cannot safely downgrade a schema it does not know.
 # =============================================================================
 
 SCHEMA_VERSION = 1
 
 
 class IncompatibleDatabase(RuntimeError):
-    '''Raised when an existing database predates the current schema.'''
+    '''Raised when a database is newer than this build can handle.'''
 
 
-_SCHEMA = '''
+# Initial schema. This is migration #1: applied to a brand-new (version 0)
+# database. ``IF NOT EXISTS`` keeps it a no-op on any pre-versioning database
+# that already carried these tables.
+_SCHEMA_V1 = '''
 CREATE TABLE IF NOT EXISTS cards (
     id               TEXT PRIMARY KEY,
     title            TEXT NOT NULL DEFAULT '',
@@ -63,6 +72,18 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_email ON auth_tokens(email);
 '''
+
+
+def _migrate_to_v1(conn: sqlite3.Connection) -> None:
+    '''Create the initial schema (cards + auth tables and their indexes).'''
+    conn.executescript(_SCHEMA_V1)
+
+
+# Ordered ladder of upgrade steps, keyed by the version each step produces.
+# Keys must be the contiguous range ``1..SCHEMA_VERSION``.
+_MIGRATIONS = {
+    1: _migrate_to_v1,
+}
 
 # Map between the snake_case DB columns and the camelCase API/JSON keys.
 _COLUMN_TO_KEY = {
@@ -102,29 +123,31 @@ class CardStore:
         return conn
 
     def init_db(self) -> None:
-        '''Create tables/indexes, rejecting an incompatible existing database.'''
-        with self.connect() as conn:
-            self._check_version(conn)
-            conn.executescript(_SCHEMA)
-            conn.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        '''Create or upgrade the schema to the current :data:`SCHEMA_VERSION`.
 
-    def _check_version(self, conn: sqlite3.Connection) -> None:
-        '''Refuse to touch a database written by an incompatible build.
-
-        A populated database whose ``user_version`` differs from the current
-        :data:`SCHEMA_VERSION` is rejected outright; there is no migration.
+        Walks the :data:`_MIGRATIONS` ladder from the database's current
+        ``user_version`` up to :data:`SCHEMA_VERSION`, stamping the version
+        after each step so an interrupted run resumes where it left off. A
+        fresh (version 0) database runs every step; an up-to-date one runs
+        none. A database newer than this build raises
+        :class:`IncompatibleDatabase`.
         '''
-        version = conn.execute('PRAGMA user_version').fetchone()[0]
-        has_cards = conn.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type='table' AND name='cards'"
-        ).fetchone() is not None
-        if has_cards and version != SCHEMA_VERSION:
-            raise IncompatibleDatabase(
-                f'Database at {self.db_path} has schema version {version}, '
-                f'but this build expects {SCHEMA_VERSION}. Remove the stale '
-                f'database file and re-run `busy_rabbit db init`.'
-            )
+        with self.connect() as conn:
+            version = conn.execute('PRAGMA user_version').fetchone()[0]
+            if version > SCHEMA_VERSION:
+                raise IncompatibleDatabase(
+                    f'Database at {self.db_path} has schema version {version}, '
+                    f'newer than this build (version {SCHEMA_VERSION}). Upgrade '
+                    f'busy-rabbit; this build cannot downgrade the database.'
+                )
+            for target in range(version + 1, SCHEMA_VERSION + 1):
+                # Bind each step to its version stamp in one transaction so a
+                # crash never leaves a half-applied step claiming completion.
+                # (Migrations should use ``conn.execute``; ``executescript``
+                # auto-commits and so escapes this guarantee.)
+                with conn:
+                    _MIGRATIONS[target](conn)
+                    conn.execute(f'PRAGMA user_version = {target}')
 
     # -------------------------------------------------------------------------
     # Reads

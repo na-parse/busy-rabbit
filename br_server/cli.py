@@ -20,7 +20,7 @@ from . import auth, create_app, load_config
 from .board import STATUS_LABELS, effective_status
 from .certs import create_self_signed_cert, is_ssl_configured
 from .config import ConfigError, validate_config
-from .db import CardStore
+from .db import SCHEMA_VERSION, CardStore
 from .logging_setup import configure_logging
 
 
@@ -114,10 +114,11 @@ def _prepare_ssl(config, logger):
 # =============================================================================
 
 def cmd_db_init(args: argparse.Namespace) -> int:
-    '''Create the database schema if needed.'''
+    '''Create the database schema, or migrate an existing one to the latest.'''
     config = _load(args)
-    _store(config).init_db()
-    print(f'Initialised database at {config.db_path}')
+    store = _store(config)
+    store.init_db()
+    print(f'Database at {config.db_path} ready (schema v{SCHEMA_VERSION}).')
     return 0
 
 
@@ -174,7 +175,7 @@ def cmd_auth_token(args: argparse.Namespace) -> int:
     '''Mint a CLI prevalidation token for a configured editor email.'''
     config = _load(args)
     store = _store(config)
-    store.init_db()  # ensure auth tables exist (rejects a stale DB)
+    store.init_db()  # ensure schema exists / is migrated to the current version
     try:
         token = auth.generate_token(store, config, args.email)
     except auth.NotAnEditor:
