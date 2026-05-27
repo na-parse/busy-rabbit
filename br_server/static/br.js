@@ -270,9 +270,113 @@
   // Card rendering
   // ===========================================================================
 
+  // Number of avatar color slots; must match the .avatar-N rules in styles.css.
+  var AVATAR_SLOTS = 8;
+
+  // Deterministic nickname -> color slot so same-initial owners (e.g.
+  // "Nathan"/"Nathaniel") still get distinct avatar colors. djb2-ish hash.
+  // (Keyed on the nickname, not the email: the email is PII we deliberately do
+  // not lean on for display. Mod-N collisions remain possible; widen
+  // AVATAR_SLOTS + the .avatar-N palette if a real clash appears.)
+  function avatarSlot(name) {
+    var hash = 0;
+    var s = name || '';
+    for (var i = 0; i < s.length; i++) {
+      hash = (hash * 31 + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % AVATAR_SLOTS;
+  }
+
   function avatar(name) {
     var initial = (name || '').trim().slice(0, 1).toUpperCase() || '?';
-    return el('span', { class: 'avatar', 'aria-hidden': 'true' }, [initial]);
+    // The nickname is shown as adjacent text again, so the avatar is decorative
+    // to assistive tech (aria-hidden) and needs no title.
+    return el(
+      'span',
+      { class: 'avatar avatar-' + avatarSlot(name), 'aria-hidden': 'true' },
+      [initial]
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Floating popover — a generic, display-only panel
+  //
+  // ONE shared element lives on <body> with position:fixed, re-positioned from
+  // the trigger's screen rect each time it opens. Fixed + body-level means it is
+  // never clipped by the column's overflow:auto scroll area (a popover nested
+  // inside the card would be). pointer-events:none keeps it from stealing the
+  // hover that opened it (no flicker).
+  //
+  // The mechanism (open/position/close) is intentionally separate from content:
+  // `openPopover` takes whatever DOM node(s) the caller builds, so new panels
+  // (owner details, history, …) just supply different content — no new popover.
+  // `popoverRow` is the common label/value line; callers may mix in any nodes.
+  //
+  // BOUNDARY: this panel is display-only. It is not interactive — do not put
+  // buttons/links inside expecting clicks (pointer-events:none blocks them).
+  // Going interactive is a deliberate change: drop pointer-events:none AND add
+  // "stay open while the pointer is over the panel" logic to the hover wiring.
+  // ---------------------------------------------------------------------------
+
+  var popoverEl = null;
+
+  function ensurePopover() {
+    if (!popoverEl) {
+      popoverEl = el('div', { class: 'card-popover', role: 'tooltip', hidden: true });
+      document.body.appendChild(popoverEl);
+    }
+    return popoverEl;
+  }
+
+  // A label/value line — the common popover row shape. `title` (optional)
+  // surfaces extra detail (e.g. an absolute date) as a native tooltip.
+  function popoverRow(label, value, title) {
+    return el('div', { class: 'card-popover-row' }, [
+      el('span', { class: 'card-popover-label' }, [label]),
+      el('span', { class: 'card-popover-value', title: title || null }, [value])
+    ]);
+  }
+
+  // Show `content` (a node or array of nodes) anchored to `trigger`.
+  function openPopover(trigger, content) {
+    var pop = ensurePopover();
+    pop.innerHTML = '';
+    (Array.isArray(content) ? content : [content]).forEach(function (node) {
+      if (node) pop.appendChild(node);
+    });
+    pop.hidden = false;
+    positionPopover(trigger);
+  }
+
+  // Measure after un-hiding, then clamp to the viewport (flip above if the
+  // panel would fall off the bottom).
+  function positionPopover(trigger) {
+    var pop = ensurePopover();
+    var r = trigger.getBoundingClientRect();
+    var gap = 6;
+    var top = r.bottom + gap;
+    if (top + pop.offsetHeight > window.innerHeight) top = r.top - pop.offsetHeight - gap;
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8));
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+  }
+
+  function closePopover() {
+    if (popoverEl) popoverEl.hidden = true;
+  }
+
+  // Content builder for the card-footer timing panel. Returns plain data so the
+  // footer can derive its aria-label from the same source it renders.
+  function cardTimes(card, column) {
+    var movedLabel = column === 'archived' ? 'archived' : 'moved';
+    return [
+      { label: 'created', value: relativeTime(card.createdAt), at: formatDate(card.createdAt) },
+      {
+        label: movedLabel,
+        value: relativeTime(card.statusChangedAt),
+        at: formatDate(card.statusChangedAt)
+      }
+    ];
   }
 
   function cardView(card, column) {
@@ -280,18 +384,38 @@
     var withOwners = state.board.showOwners;
     var archiving = column === 'done' ? daysUntilArchive(card) : null;
 
-    var meta = [
-      el('span', { title: 'Created ' + formatDate(card.createdAt) }, [
-        'created ' + relativeTime(card.createdAt)
-      ]),
-      el('span', { title: 'In this column since ' + formatDate(card.statusChangedAt) }, [
-        (column === 'archived' ? 'archived ' : 'moved ') +
-          relativeTime(card.statusChangedAt)
-      ])
-    ];
-    if (archiving !== null) {
-      meta.push(el('span', { class: 'archive-soon' }, ['archives in ' + archiving + 'd']));
+    // Footer = the timing-popover trigger. With owners it shows avatar + name
+    // (as in the original); without owners it falls back to a small clock glyph
+    // so the times stay reachable. The archive warning stays visible, pushed to
+    // the trailing edge.
+    var footerKids = [];
+    if (withOwners && card.ownerName) {
+      footerKids.push(avatar(card.ownerName));
+      footerKids.push(el('span', { class: 'card-owner-name' }, [card.ownerName]));
+    } else {
+      footerKids.push(el('span', { class: 'card-time-icon', 'aria-hidden': 'true' }, ['◷']));
     }
+    if (archiving !== null) {
+      footerKids.push(el('span', { class: 'archive-soon' }, ['archives in ' + archiving + 'd']));
+    }
+
+    var times = cardTimes(card, column);
+    var ariaTimes = times.map(function (t) { return t.label + ' ' + t.value; }).join(', ');
+    // Build content lazily on open so the relative times ("2m ago") are fresh.
+    function openTimes() {
+      openPopover(footer, times.map(function (t) {
+        return popoverRow(t.label, t.value, t.at);
+      }));
+    }
+    var footer = el('div', {
+      class: 'card-footer',
+      tabindex: '0',
+      'aria-label': 'Card times: ' + ariaTimes,
+      onmouseenter: openTimes,
+      onmouseleave: closePopover,
+      onfocus: openTimes,
+      onblur: closePopover
+    }, footerKids);
 
     var children = [
       el('h3', {}, [card.title]),
@@ -300,13 +424,8 @@
       card.notes
         ? el('div', { class: 'card-notes' }, [el('p', {}, [card.notes])])
         : null,
-      el('div', { class: 'card-meta' }, meta)
+      footer
     ];
-    if (withOwners && card.ownerName) {
-      children.push(
-        el('div', { class: 'card-owner' }, [avatar(card.ownerName), card.ownerName])
-      );
-    }
 
     var classes = ['card'];
     if (isEditor) classes.push('editable');
@@ -327,6 +446,7 @@
       // dragged and cancels the drag. Instead we toggle classes directly on
       // the live nodes and only re-render once the drag has finished.
       node.addEventListener('dragstart', function (e) {
+        closePopover();
         state.drag = { id: card.id };
         if (e.dataTransfer) {
           e.dataTransfer.effectAllowed = 'move';
@@ -534,6 +654,8 @@
 
   function render() {
     if (!state.board) return;
+    // Rebuilding columns destroys the trigger nodes, so drop any open popover.
+    closePopover();
     els.columns.setAttribute('aria-busy', 'false');
     els.columns.innerHTML = '';
     var grouped = groupCards();
@@ -580,6 +702,11 @@
         applyTheme(next);
       });
     }
+
+    // The timing popover is position:fixed off the trigger's screen rect, so a
+    // scroll (capture phase catches the columns' inner scroll too) would leave
+    // it floating in the wrong place — just dismiss it.
+    window.addEventListener('scroll', closePopover, true);
 
     refresh().then(function () {
       // Editors persist Done -> Archived ageing once on load.
