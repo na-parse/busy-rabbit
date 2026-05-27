@@ -12,7 +12,13 @@ from pathlib import Path
 from flask import Flask
 
 from .auth import SESSION_TTL
-from .config import Config, load_config, validate_config
+from .config import (
+    Config,
+    config_has_secret,
+    load_config,
+    load_or_create_secret,
+    validate_config,
+)
 from .db import CardStore
 from .logging_setup import configure_logging
 
@@ -41,8 +47,18 @@ def create_app(
     validate_config(config)
 
     app = Flask(__name__)
-    app.secret_key = config.security.secret_key
+    # Session secret is auto-managed in a file beside the DB, not configured.
+    secret_existed = config.secret_path.exists()
+    app.secret_key = load_or_create_secret(config.secret_path)
     app.permanent_session_lifetime = SESSION_TTL
+    if not secret_existed:
+        logger.info('Generated a new session secret at %s', config.secret_path)
+    if config_has_secret(config.source_path):
+        logger.warning(
+            'Obsolete [security] secret_key found in %s; it is ignored and '
+            'safe to delete. The session secret is managed at %s.',
+            config.source_path, config.secret_path,
+        )
 
     store = CardStore(config.db_path)
     store.init_db()

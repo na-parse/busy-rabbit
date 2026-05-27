@@ -52,9 +52,9 @@ request, so removing an editor revokes access immediately.
 
 ## Features
 
-- Four working columns — **Pending 3rd Party**, **To Do**, **In Progress**,
-  **Done** — plus a derived **Archived** drawer for Done cards older than the
-  configured window (default 14 days).
+- Five working columns — **Pending 3rd Party**, **To Do**, **In Progress**,
+  **Scheduled**, **Done** — plus a derived **Archived** drawer for Done cards
+  older than the configured window (default 14 days).
 - Drag-and-drop reordering within a column and moves between columns, using
   midpoint positioning so existing cards never need rewriting.
 - Inline card create / edit / delete, with a free-form **notes** body shown
@@ -107,7 +107,7 @@ for any command's own help.
 | `db stats` | — | Show card counts grouped by effective status. |
 | `auth token` | `<email>` (required) | Mint a 24h prevalidation token for a configured editor; sign in at `/login/token`. |
 | `config setup` | — | Interactive guided wizard; writes a commented `config.toml` (backs up any existing file). |
-| `config show` | — | Print the resolved config (secrets redacted) and report validation errors. |
+| `config show` | — | Print the resolved config, the session-secret location, and validation status. The SMTP password is never printed, and a leftover `[security] secret_key` is flagged as removable. |
 | `logs tail` | `-n`, `--lines N` (default 40) | Print the tail of `logs/busy_rabbit.log`. |
 
 Ctrl+C exits any command cleanly (no traceback).
@@ -122,8 +122,10 @@ documented template, or run `./busy_rabbit config setup`). Key points:
   optional `nickname` becomes the card owner label (else the email local part).
 - `[server] mode` is `public` (open read-only viewing) or `closed` (sign-in
   required for any access).
-- `[security] secret_key` signs session cookies — set it to a long random
-  string for any real use. The wizard generates one for you.
+- The secret that signs session cookies is **not** a setting. It is generated
+  automatically on first start and stored in `data/server.secret` (mode 0600,
+  beside the database), then reused on every later start. Operators never set
+  it. Deleting the file simply mints a new one, which logs everyone out.
 - `[smtp]` delivers one-time login codes and is required for the email sign-in
   flow; the CLI token flow works without it. Auth is used only when **both**
   `username` and `password` are set.

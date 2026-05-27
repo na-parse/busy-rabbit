@@ -19,10 +19,9 @@ mode = "closed"
 # busy-rabbit behind a reverse proxy instead.
 use_https = false
 
-[security]
-# Used to sign session cookies. Set to a long random string for any real use.
-# Sessions stay valid for 30 days from sign-in.
-secret_key = "change-me-to-a-long-random-string"
+# Note: the secret that signs session cookies is NOT configured here. It is
+# generated automatically on first start and stored in `data/server.secret`
+# (beside the database). Operators never need to set or manage it.
 
 [smtp]
 # Used to deliver one-time login codes. Required for the email login flow;
