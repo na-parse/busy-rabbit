@@ -51,6 +51,16 @@ def create_app(
     secret_existed = config.secret_path.exists()
     app.secret_key = load_or_create_secret(config.secret_path)
     app.permanent_session_lifetime = SESSION_TTL
+    # CSRF hardening: instruct the browser when it may send the session cookie.
+    # SameSite=Lax stops other origins from carrying the cookie on cross-site
+    # requests (the CSRF premise) while still allowing top-level navigations to
+    # the board. HttpOnly keeps it out of JS reach; Secure ties it to HTTPS so
+    # it cannot leak over plaintext when TLS is enabled.
+    app.config.update(
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SECURE=config.server.use_https,
+    )
     if not secret_existed:
         logger.info('Generated a new session secret at %s', config.secret_path)
     if config_has_secret(config.source_path):
