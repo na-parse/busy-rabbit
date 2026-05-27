@@ -17,7 +17,7 @@ from typing import Any
 # Statuses - the four working columns plus the derived 'archived' state.
 # =============================================================================
 
-STATUSES: tuple[str, ...] = ('deferred', 'todo', 'in_progress', 'done')
+STATUSES: tuple[str, ...] = ('deferred', 'todo', 'in_progress', 'scheduled', 'done')
 
 # 'archived' is a derived state, never a column the user drops into directly.
 ALL_STATUSES: tuple[str, ...] = STATUSES + ('archived',)
@@ -26,6 +26,7 @@ STATUS_LABELS: dict[str, str] = {
     'deferred': 'Pending 3rd Party',
     'todo': 'To Do',
     'in_progress': 'In Progress',
+    'scheduled': 'Scheduled',
     'done': 'Done',
     'archived': 'Archived',
 }
@@ -36,6 +37,7 @@ STATUS_ACCENTS: dict[str, str] = {
     'deferred': '#6e7781',
     'todo': '#0969da',
     'in_progress': '#9a6700',
+    'scheduled': '#0e7490',
     'done': '#1a7f37',
     'archived': '#8250df',
 }

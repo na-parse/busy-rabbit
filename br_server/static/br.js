@@ -18,7 +18,12 @@
   // ===========================================================================
 
   var THEME_KEY = 'busy-rabbit-theme';
-  var THEMES = ['github-dark', 'github-light'];
+  var THEMES = ['github-dark', 'github-medium', 'github-light'];
+  var THEME_LABELS = {
+    'github-dark': '☾ dark',
+    'github-medium': '◑ medium',
+    'github-light': '☀ light'
+  };
   var POLL_MS = 4000;
 
   // ===========================================================================
@@ -202,7 +207,10 @@
   // ===========================================================================
 
   function groupCards() {
-    var buckets = { deferred: [], todo: [], in_progress: [], done: [], archived: [] };
+    // Derive buckets from the server's status list (+ derived 'archived') so a
+    // new column added in board.py needs no client change.
+    var buckets = { archived: [] };
+    state.board.statuses.forEach(function (status) { buckets[status] = []; });
     (state.board.cards || []).forEach(function (card) {
       buckets[effectiveStatus(card)].push(card);
     });
@@ -684,7 +692,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem(THEME_KEY, theme);
     if (els.themeToggle) {
-      els.themeToggle.textContent = theme === 'github-light' ? '☀ light' : '☾ dark';
+      els.themeToggle.textContent = THEME_LABELS[theme] || THEME_LABELS['github-dark'];
     }
   }
 

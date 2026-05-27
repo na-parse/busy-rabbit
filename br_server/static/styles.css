@@ -20,6 +20,13 @@ html[data-theme='github-dark'] {
   --on-accent: #ffffff;
   --danger: #f85149;
   --shadow: rgba(1, 4, 9, 0.5);
+  /* Top bar + cards alias the base tokens here; the medium theme overrides them
+     so the title bar and cards can diverge from the page colour. */
+  --topbar: var(--canvas);
+  --card: var(--canvas);
+  --card-fg: var(--fg);
+  --card-fg-muted: var(--fg-muted);
+  --card-border: var(--border);
   /* Owner-avatar palette: 8 slots, all dark enough for white text on dark bg. */
   --av-0: #388bfd; --av-1: #2ea043; --av-2: #8957e5; --av-3: #da3633;
   --av-4: #db6d28; --av-5: #0e8a87; --av-6: #db61a2; --av-7: #9e6a03;
@@ -36,7 +43,35 @@ html[data-theme='github-light'] {
   --on-accent: #ffffff;
   --danger: #cf222e;
   --shadow: rgba(31, 35, 40, 0.12);
+  --topbar: var(--canvas);
+  --card: var(--canvas);
+  --card-fg: var(--fg);
+  --card-fg-muted: var(--fg-muted);
+  --card-border: var(--border);
   /* Owner-avatar palette: darker hues so white text stays legible on light bg. */
+  --av-0: #0969da; --av-1: #1a7f37; --av-2: #8250df; --av-3: #cf222e;
+  --av-4: #bc4c00; --av-5: #0e7490; --av-6: #bf3989; --av-7: #9a6700;
+}
+
+/* Medium: dark blue-gray page with a carried-over dark title bar and bright
+   light-gray cards. A chill middle ground between the light and dark themes. */
+html[data-theme='github-medium'] {
+  --canvas: #21262d;
+  --surface: #373e47;
+  --surface-muted: #444c56;
+  --border: #4a515b;
+  --fg: #e6edf3;
+  --fg-muted: #9aa4b0;
+  --accent: #2f81f7;
+  --on-accent: #ffffff;
+  --danger: #f85149;
+  --shadow: rgba(1, 4, 9, 0.5);
+  --topbar: #0d1117;
+  --card: #cccccc;
+  --card-fg: #000000;
+  --card-fg-muted: #444c56;
+  --card-border: #b3b3b3;
+  /* Cards are light here, so reuse the dark-on-light avatar hues. */
   --av-0: #0969da; --av-1: #1a7f37; --av-2: #8250df; --av-3: #cf222e;
   --av-4: #bc4c00; --av-5: #0e7490; --av-6: #bf3989; --av-7: #9a6700;
 }
@@ -63,6 +98,7 @@ body {
   display: flex; flex-wrap: wrap; align-items: center;
   justify-content: space-between; gap: 12px;
   padding: 12px 20px; border-bottom: 1px solid var(--border);
+  background: var(--topbar);
 }
 
 .brand { display: flex; flex-direction: column; gap: 2px; }
@@ -169,7 +205,8 @@ button { font: inherit; cursor: pointer; }
 .column-body.drop-active { outline: 2px dashed var(--accent); outline-offset: -4px; }
 
 .card {
-  border: 1px solid var(--border); background: var(--canvas);
+  border: 1px solid var(--card-border); background: var(--card);
+  color: var(--card-fg);
   border-radius: 6px; padding: 12px; box-shadow: 0 1px 0 var(--shadow);
 }
 .card.editable { cursor: grab; }
@@ -181,11 +218,11 @@ button { font: inherit; cursor: pointer; }
 
 /* Notes: separated from the primary text by a rule and shown in a softer tone. */
 .card-notes {
-  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--card-border);
 }
 .card-notes p {
   margin: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap;
-  color: var(--fg-muted); opacity: 0.85; font-style: italic;
+  color: var(--card-fg-muted); opacity: 0.85; font-style: italic;
 }
 
 /* Footer row: owner (avatar + nickname) or a clock glyph fallback, plus the
@@ -193,12 +230,12 @@ button { font: inherit; cursor: pointer; }
    shows a help cursor and a faint focus ring. */
 .card-footer {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin-top: 10px; font-size: 11px; color: var(--fg-muted);
+  margin-top: 10px; font-size: 11px; color: var(--card-fg-muted);
   cursor: help; outline: none; border-radius: 4px;
 }
 .card-footer:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-.card-owner-name { color: var(--fg-muted); }
-.card-time-icon { font-size: 13px; line-height: 1; color: var(--fg-muted); }
+.card-owner-name { color: var(--card-fg-muted); }
+.card-time-icon { font-size: 13px; line-height: 1; color: var(--card-fg-muted); }
 .archive-soon { margin-left: auto; color: var(--accent); }
 
 /* Floating timing panel (one shared node on <body>, position:fixed set by JS).
