@@ -122,8 +122,10 @@ documented template, or run `./busy_rabbit config setup`). Key points:
   optional `nickname` becomes the card owner label (else the email local part).
 - `[server] mode` is `public` (open read-only viewing) or `closed` (sign-in
   required for any access).
-- `[security] secret_key` signs session cookies — set it to a long random
-  string for any real use. The wizard generates one for you.
+- The secret that signs session cookies is **not** a setting. It is generated
+  automatically on first start and stored in `data/server.secret` (mode 0600,
+  beside the database), then reused on every later start. Operators never set
+  it. Deleting the file simply mints a new one, which logs everyone out.
 - `[smtp]` delivers one-time login codes and is required for the email sign-in
   flow; the CLI token flow works without it. Auth is used only when **both**
   `username` and `password` are set.

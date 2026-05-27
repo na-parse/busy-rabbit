@@ -19,7 +19,7 @@ from pathlib import Path
 from . import auth, create_app, load_config
 from .board import STATUS_LABELS, effective_status
 from .certs import create_self_signed_cert, is_ssl_configured
-from .config import ConfigError, validate_config
+from .config import ConfigError, config_has_secret, validate_config
 from .db import SCHEMA_VERSION, CardStore
 from .logging_setup import configure_logging
 
@@ -207,6 +207,10 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     print(f'Mode:          {config.server.mode}')
     print(f'HTTPS:         {"on (self-signed)" if config.server.use_https else "off"}')
     print(f'Database:      {config.db_path}')
+    secret_state = 'present' if config.secret_path.exists() else 'on first start'
+    print(f'Session secret: {config.secret_path} ({secret_state})')
+    if config_has_secret(config.source_path):
+        print('  ! [security] secret_key is set but ignored; safe to remove.')
     print(f'Log dir:       {config.log_dir} (level={config.logging.level})')
     print(f'Board title:   {config.board.title}')
     print(f'App owner:     {config.board.app_owner or "(none)"}')

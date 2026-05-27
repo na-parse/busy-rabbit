@@ -8,7 +8,9 @@ dicts or environment variables.
 
 from __future__ import annotations
 
+import os
 import re
+import secrets
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -61,12 +63,6 @@ class ServerConfig:
     # alongside the database on first start). Off by default; for trusted public
     # HTTPS, leave this off and run behind a reverse proxy instead.
     use_https: bool = False
-
-
-@dataclass(frozen=True)
-class SecurityConfig:
-    # Used to sign Flask session cookies. Change it for any real deployment.
-    secret_key: str = 'change-me-please'
 
 
 @dataclass(frozen=True)
@@ -147,7 +143,6 @@ class Config:
     '''Top-level configuration, with paths resolved against the repo root.'''
 
     server: ServerConfig
-    security: SecurityConfig
     smtp: SmtpConfig
     board: BoardConfig
     database: DatabaseConfig
@@ -175,6 +170,13 @@ class Config:
     @property
     def key_path(self) -> Path:
         return self.db_path.parent / 'busy-rabbit-key.pem'
+
+    # Session-signing secret lives beside the database (location fixed, not
+    # configurable) and is auto-generated on first start — see
+    # :func:`load_or_create_secret`. Operators never set or see it.
+    @property
+    def secret_path(self) -> Path:
+        return self.db_path.parent / 'server.secret'
 
     # -------------------------------------------------------------------------
     # Editor accessors
@@ -235,7 +237,6 @@ def load_config(path: Path | str | None = None) -> Config:
 
     return Config(
         server=ServerConfig(**_section(data, 'server', ServerConfig)),
-        security=SecurityConfig(**_section(data, 'security', SecurityConfig)),
         smtp=SmtpConfig(**_section(data, 'smtp', SmtpConfig)),
         board=BoardConfig(**board_fields),
         database=DatabaseConfig(**_section(data, 'database', DatabaseConfig)),
@@ -264,6 +265,48 @@ def _editors(data: dict) -> list[Editor]:
                 )
             )
     return editors
+
+
+def load_or_create_secret(path: Path) -> str:
+    '''Return the persistent session-signing secret, creating it on first use.
+
+    The secret signs Flask session cookies and must stay stable across restarts
+    (a changed secret invalidates every login). It lives in its own file rather
+    than ``config.toml`` so it is never something an operator has to choose,
+    paste, or protect by hand. A fresh install generates a strong random value;
+    later starts reuse it. The file is created owner-readable only (mode 0600).
+    '''
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # Exclusive create wins the common case and any startup race cleanly.
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        existing = path.read_text(encoding='utf-8').strip()
+        if existing:
+            return existing
+        # Empty/corrupt (e.g. an interrupted first write): overwrite it.
+        fd = os.open(path, os.O_WRONLY | os.O_TRUNC, 0o600)
+    secret = secrets.token_urlsafe(48)
+    with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+        handle.write(secret)
+    return secret
+
+
+def config_has_secret(path: Path | str | None) -> bool:
+    '''Whether ``config.toml`` still carries a now-ignored ``secret_key``.
+
+    Used to nudge operators of older deployments to delete the obsolete
+    ``[security] secret_key`` setting. Returns ``False`` for a missing or
+    unparseable file rather than raising.
+    '''
+    if not path or not Path(path).exists():
+        return False
+    try:
+        with Path(path).open('rb') as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+    return bool((data.get('security') or {}).get('secret_key'))
 
 
 # =============================================================================

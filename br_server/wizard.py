@@ -14,7 +14,6 @@ than taking on a third-party writer dependency.
 from __future__ import annotations
 
 import getpass
-import secrets
 import shutil
 import sys
 from pathlib import Path
@@ -28,22 +27,14 @@ from .config import (
     DatabaseConfig,
     Editor,
     LoggingConfig,
-    SecurityConfig,
     ServerConfig,
     SmtpConfig,
+    config_has_secret,
     is_valid_email,
     load_config,
     validate_config,
 )
 from .email_send import SmtpError, send_test
-
-# Placeholder secrets from the shipped template / dataclass defaults; if the
-# stored key is one of these, the wizard pushes the owner to generate a real one.
-_PLACEHOLDER_SECRETS = {
-    'change-me-please',
-    'change-me-to-a-long-random-string',
-    '',
-}
 
 
 # =============================================================================
@@ -130,18 +121,6 @@ def _prompt_server(existing: ServerConfig) -> ServerConfig:
         host=host, port=port, debug=existing.debug, mode=mode,
         use_https=use_https,
     )
-
-
-def _prompt_security(existing: SecurityConfig) -> SecurityConfig:
-    print('\nSecurity key (signs session cookies):')
-    needs_key = existing.secret_key in _PLACEHOLDER_SECRETS
-    if needs_key:
-        print('No real secret_key set; generating a strong one.')
-        generate = True
-    else:
-        generate = _ask_bool('Replace the existing secret_key?', False)
-    secret = secrets.token_urlsafe(48) if generate else existing.secret_key
-    return SecurityConfig(secret_key=secret)
 
 
 # SMTP transport options, in menu order: TLS mode, human label, default port.
@@ -247,9 +226,9 @@ def _q(value: str) -> str:
 
 def dump_toml(config: Config) -> str:
     '''Serialise a :class:`Config` to a fully-commented ``config.toml`` body.'''
-    s, b, m, sm, d, lg = (
+    s, b, m, d, lg = (
         config.server, config.board, config.smtp,
-        config.security, config.database, config.logging,
+        config.database, config.logging,
     )
     lines: list[str] = [
         '# busy-rabbit configuration',
@@ -266,10 +245,6 @@ def dump_toml(config: Config) -> str:
         '# beside the database on first start. Leave false to use a reverse',
         '# proxy for trusted/public HTTPS.',
         f'use_https = {str(s.use_https).lower()}',
-        '',
-        '[security]',
-        '# Signs session cookies; sessions last 30 days. Keep this secret.',
-        f'secret_key = {_q(sm.secret_key)}',
         '',
         '[smtp]',
         '# Delivers one-time login codes. Leave relay empty to disable email',
@@ -322,12 +297,10 @@ def dump_toml(config: Config) -> str:
 # config each section first prints its current settings, then asks whether to
 # update them - so an operator can skip straight to the part they care about.
 
-def _show_server(server: ServerConfig, security: SecurityConfig) -> None:
-    key = 'NOT set' if security.secret_key in _PLACEHOLDER_SECRETS else 'set'
+def _show_server(server: ServerConfig) -> None:
     print(f'  Bind:        {server.host}:{server.port}')
     print(f'  Access mode: {server.mode}')
     print(f'  HTTPS:       {"on (self-signed)" if server.use_https else "off"}')
-    print(f'  Secret key:  {key}')
 
 
 def _show_mailer(smtp: SmtpConfig) -> None:
@@ -417,14 +390,16 @@ def run_setup(config_path: str | Path | None = None) -> int:
     if editing:
         print(f'Editing existing config at {target}.')
         print('For each section, review the summary and choose what to update.')
+        if config_has_secret(target):
+            print('Note: the obsolete [security] secret_key will be removed on '
+                  'save (the session secret is now auto-managed).')
 
-    # Server Settings: bind address, port, access mode, security key.
+    # Server Settings: bind address, port, access mode.
     if _enter_section('Server Settings', editing,
-                      lambda: _show_server(existing.server, existing.security)):
+                      lambda: _show_server(existing.server)):
         server = _prompt_server(existing.server)
-        security = _prompt_security(existing.security)
     else:
-        server, security = existing.server, existing.security
+        server = existing.server
 
     # Mailer: SMTP delivery for emailed login codes.
     if _enter_section('Mailer', editing, lambda: _show_mailer(existing.smtp)):
@@ -440,7 +415,6 @@ def run_setup(config_path: str | Path | None = None) -> int:
 
     config = Config(
         server=server,
-        security=security,
         smtp=smtp,
         board=board,
         database=DatabaseConfig(path=existing.database.path),
