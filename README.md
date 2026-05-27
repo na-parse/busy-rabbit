@@ -67,27 +67,6 @@ request, so removing an editor revokes access immediately.
 - Owner names shown on cards when more than one editor is configured.
 - Rotating logs under `./logs`.
 
-## Layout
-
-| Path | Purpose |
-| --- | --- |
-| `busy_rabbit` | Thin CLI shim: bootstraps `sys.path`, defers to `br_server.cli` |
-| `br_server/` | Flask application package |
-| `br_server/cli.py` | CLI command logic + argparse (serve, db, auth, config, logs) |
-| `br_server/board.py` | Pure board model (statuses, archiving, ordering) |
-| `br_server/db.py` | SQLite card store |
-| `br_server/auth.py` | Email-based editor sessions (codes + CLI tokens) |
-| `br_server/email_send.py` | SMTP delivery of login codes |
-| `br_server/certs.py` | Self-signed TLS cert generation for `use_https` |
-| `br_server/routes.py` | Page + JSON API routes |
-| `br_server/wizard.py` | Guided `config setup` wizard |
-| `br_server/templates/` | Jinja2 templates |
-| `br_server/static/` | `br.js` client + `styles.css` |
-| `config.toml` | Local configuration (gitignored) |
-| `config.example.toml` | Documented template to copy |
-| `data/` | SQLite database (gitignored) |
-| `logs/` | Rotating logs (gitignored) |
-
 ## CLI
 
 All commands accept a global `--config PATH` to use an alternate config file
@@ -150,4 +129,65 @@ than overwrite them.
 
 Self-signed is the only built-in option. For a CA-signed (publicly trusted)
 certificate, leave `use_https = false` and terminate TLS at a reverse proxy in
-front of the app.
+front of the app (see [Advanced deployment](#advanced-deployment)).
+
+## Advanced deployment
+
+`./busy_rabbit serve` runs Flask's built-in (Werkzeug) server. That is fine for
+small, single-host, low-traffic use — the typical busy-rabbit deployment. If you
+want a hardened production setup, a reverse proxy and/or a dedicated WSGI server,
+the application exposes a standard WSGI factory you can point any server at:
+
+```python
+br_server:create_app   # callable returning a configured Flask app
+```
+
+With no arguments it loads `config.toml` from the repo root (resolved from the
+package location, not the working directory). Run these commands from the repo
+root with your virtualenv active so `br_server` is importable. To use a config
+elsewhere, wrap the factory: `br_server:create_app` accepts a `config_path`
+argument.
+
+### Reverse proxy (recommended for public HTTPS)
+
+The cleanest production model is to let a reverse proxy (nginx, Caddy, Apache)
+own the public HTTPS endpoint and forward to busy-rabbit over plain HTTP on the
+loopback interface:
+
+1. Leave `use_https = false` and set `[server] host = "127.0.0.1"` so the app is
+   only reachable through the proxy.
+2. Point the proxy at `http://127.0.0.1:<port>` and have it terminate TLS with
+   your CA-signed certificate.
+
+This gives you trusted certificates, HTTP/2, and standard proxy logging without
+busy-rabbit managing any of it.
+
+> **Note on the `Secure` cookie flag.** The session cookie is marked `Secure`
+> only when `use_https = true`. In the reverse-proxy model the app serves plain
+> HTTP, so the cookie is not flagged `Secure` even though browsers reach you over
+> HTTPS. The session still works (it remains `HttpOnly` and `SameSite=Lax`); the
+> flag is simply not asserted. If you require it, restrict the app to the
+> loopback interface (step 1 above) so the cookie never traverses an untrusted
+> network in the first place.
+
+### waitress (cross-platform, no compiler)
+
+[waitress](https://github.com/Pylons/waitress) is a pure-Python production WSGI
+server — no build step or compiler, matching busy-rabbit's no-dependencies-heavy
+ethos, and it runs on Linux, macOS, and Windows alike. Install it and point it at
+the factory:
+
+```sh
+pip install waitress
+waitress-serve --listen=0.0.0.0:8000 --call br_server:create_app
+```
+
+waitress does not terminate TLS itself; pair it with the reverse proxy above for
+HTTPS.
+
+### Other WSGI servers
+
+Any WSGI server can run the same `br_server:create_app` factory — for example a
+prefork server like gunicorn on Linux. Consult that server's own documentation
+for the invocation and process management; busy-rabbit needs nothing special
+beyond the factory above.
