@@ -271,6 +271,11 @@ class CardStore:
         return {'hash': row['code_hash'], 'created_at': row['created_at']} \
             if row else None
 
+    def delete_auth_codes(self, email: str) -> None:
+        '''Drop every login code for an email (consumed on successful login).'''
+        with self.connect() as conn:
+            conn.execute('DELETE FROM auth_codes WHERE email = ?', (email,))
+
     def count_auth_codes_since(self, email: str, since: str) -> int:
         '''Codes issued to an email at or after ``since`` (rate limiting).'''
         with self.connect() as conn:
@@ -302,6 +307,11 @@ class CardStore:
             ).fetchone()
         return {'hash': row['token_hash'], 'created_at': row['created_at']} \
             if row else None
+
+    def delete_auth_tokens(self, email: str) -> None:
+        '''Drop every CLI token for an email (consumed on successful login).'''
+        with self.connect() as conn:
+            conn.execute('DELETE FROM auth_tokens WHERE email = ?', (email,))
 
     # -------------------------------------------------------------------------
     # Serialisation

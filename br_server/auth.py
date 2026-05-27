@@ -11,8 +11,8 @@ State lives in two places:
   was validated, giving a 30-day rolling login without any server-side session
   table;
 * short-lived codes and tokens are persisted (hashed) in SQLite via
-  :class:`~br_server.db.CardStore`, so expiry, single-use-of-newest, and
-  generation rate limits survive a restart.
+  :class:`~br_server.db.CardStore`, so expiry, one-time use (consumed on the
+  successful login), and generation rate limits survive a restart.
 
 Editors are re-checked against the live config on every request, so removing
 someone from ``config.toml`` revokes their access immediately.
@@ -126,7 +126,7 @@ def request_code(store: CardStore, config: Config, email: str) -> str:
 
 def verify_code(store: CardStore, config: Config, email: str,
                 code: str) -> bool:
-    '''Validate a login code; on success start a 30-day editor session.'''
+    '''Validate a login code; on success consume it and start a 30-day session.'''
     email = _norm(email)
     if not config.is_editor_email(email):
         return False
@@ -135,6 +135,7 @@ def verify_code(store: CardStore, config: Config, email: str,
         return False
     if not hmac.compare_digest(row['hash'], _hash(code or '')):
         return False
+    store.delete_auth_codes(email)  # one-time use: consume on success
     _establish_session(email)
     return True
 
@@ -161,7 +162,7 @@ def generate_token(store: CardStore, config: Config, email: str) -> str:
 
 def verify_token(store: CardStore, config: Config, email: str,
                  token: str) -> bool:
-    '''Validate a prevalidation token; on success start an editor session.'''
+    '''Validate a token; on success consume it and start an editor session.'''
     email = _norm(email)
     if not config.is_editor_email(email):
         return False
@@ -170,6 +171,7 @@ def verify_token(store: CardStore, config: Config, email: str,
         return False
     if not hmac.compare_digest(row['hash'], _hash(token or '')):
         return False
+    store.delete_auth_tokens(email)  # one-time use: consume on success
     _establish_session(email)
     return True
 
